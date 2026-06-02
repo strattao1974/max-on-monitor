@@ -2,6 +2,7 @@
 #SingleInstance Force
 #Warn All, Off
 
+TraySetIcon(A_ScriptFullPath, 1)
 A_IconTip := "Max-on-Monitor"
 A_TrayMenu.Delete()
 A_TrayMenu.Add("Exit", (*) => ExitApp())
