@@ -5,14 +5,6 @@
 global g_manualPause := false
 global g_hookActive  := false
 
-; Anti-cheat and game processes that require the hook to be fully removed
-global g_blockedProcesses := [
-    "EasyAntiCheat.exe", "EasyAntiCheat_launcher.exe",
-    "BEService.exe", "BEClient.exe",
-    "r5apex.exe", "cs2.exe", "valorant.exe",
-    "FortniteClient-Win64-Shipping.exe"
-]
-
 TraySetIcon(A_ScriptFullPath, 1)
 
 ; Define hotkey using dynamic Hotkey function so we can truly enable/disable the hook
@@ -51,16 +43,7 @@ SetHook(enable) {
 }
 
 NeedsBlock() {
-    ; Block if a fullscreen app is active
-    if IsFullscreenAppActive()
-        return true
-    ; Block if any known anti-cheat / game process is running
-    global g_blockedProcesses
-    for proc in g_blockedProcesses {
-        if ProcessExist(proc)
-            return true
-    }
-    return false
+    return IsFullscreenAppActive()
 }
 
 IsFullscreenAppActive() {
