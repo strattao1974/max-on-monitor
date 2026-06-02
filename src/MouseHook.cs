@@ -6,6 +6,7 @@ internal class MouseHook : IDisposable
 {
     private IntPtr _hookId = IntPtr.Zero;
     private readonly NativeMethods.LowLevelMouseProc _proc;
+    private volatile bool _suppressNextUp;
 
     public MouseHook()
     {
@@ -31,16 +32,25 @@ internal class MouseHook : IDisposable
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && (int)wParam == NativeMethods.WM_RBUTTONDOWN)
+        if (nCode >= 0)
         {
-            if ((NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) != 0)
+            int msg = (int)wParam;
+
+            if (msg == NativeMethods.WM_RBUTTONDOWN &&
+                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) != 0)
             {
                 IntPtr hwnd = NativeMethods.GetForegroundWindow();
                 if (hwnd != IntPtr.Zero)
                 {
+                    _suppressNextUp = true;
                     ThreadPool.QueueUserWorkItem(_ => SnapWindow(hwnd));
-                    return new IntPtr(1); // suppress RButton
+                    return new IntPtr(1); // suppress RButton down
                 }
+            }
+            else if (msg == NativeMethods.WM_RBUTTONUP && _suppressNextUp)
+            {
+                _suppressNextUp = false;
+                return new IntPtr(1); // suppress RButton up — prevents context menu
             }
         }
         return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);

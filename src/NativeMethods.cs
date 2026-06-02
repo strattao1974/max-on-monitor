@@ -7,6 +7,7 @@ internal static class NativeMethods
 {
     public const int WH_MOUSE_LL     = 14;
     public const int WM_RBUTTONDOWN  = 0x0204;
+    public const int WM_RBUTTONUP    = 0x0205;
     public const int VK_LBUTTON      = 0x01;
     public const int SW_RESTORE      = 9;
     public const int SW_MAXIMIZE     = 3;
