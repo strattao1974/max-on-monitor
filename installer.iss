@@ -27,7 +27,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "startup"; Description: "Run automatically at Windows startup"; GroupDescription: "Additional options:"
 
 [Files]
-Source: "c:\Users\strat\windows widget\max_on_monitor.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "c:\Users\strat\windows widget\src\bin\Release\net8.0-windows\max_on_monitor.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Max-on-Monitor"; Filename: "{app}\max_on_monitor.exe"
