@@ -41,3 +41,38 @@ Filename: "{app}\max_on_monitor.exe"; Description: "Launch Max-on-Monitor now"; 
 
 [UninstallRun]
 Filename: "taskkill"; Parameters: "/f /im max_on_monitor.exe"; Flags: runhidden; RunOnceId: "KillProcess"
+
+[Code]
+function IsDotNet8DesktopInstalled(): Boolean;
+var
+  FindRec: TFindRec;
+  BasePath: String;
+begin
+  Result := False;
+  BasePath := ExpandConstant('{pf}\dotnet\shared\Microsoft.WindowsDesktop.App\');
+  if FindFirst(BasePath + '8.*', FindRec) then
+  begin
+    Result := True;
+    FindClose(FindRec);
+  end;
+end;
+
+function InitializeSetup(): Boolean;
+var
+  Res: Integer;
+begin
+  Result := True;
+  if not IsDotNet8DesktopInstalled() then
+  begin
+    if MsgBox(
+      'Max-on-Monitor requires the .NET 8 Desktop Runtime, which was not found on this computer.' + #13#10#13#10 +
+      'Click Yes to download it from Microsoft (free, ~55 MB), then re-run this installer.' + #13#10 +
+      'Click No to cancel.',
+      mbError, MB_YESNO) = IDYES then
+    begin
+      ShellExec('open', 'https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe',
+                '', '', SW_SHOW, ewNoWait, Res);
+    end;
+    Result := False;
+  end;
+end;
