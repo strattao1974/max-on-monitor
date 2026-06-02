@@ -3,15 +3,28 @@
 #Warn All, Off
 
 global g_manualPause := false
-global g_autopaused  := false
+global g_hookActive  := false
+
+; Anti-cheat and game processes that require the hook to be fully removed
+global g_blockedProcesses := [
+    "EasyAntiCheat.exe", "EasyAntiCheat_launcher.exe",
+    "BEService.exe", "BEClient.exe",
+    "r5apex.exe", "cs2.exe", "valorant.exe",
+    "FortniteClient-Win64-Shipping.exe"
+]
 
 TraySetIcon(A_ScriptFullPath, 1)
-UpdateTrayState()
-SetTimer(CheckFullscreen, 2000)
 
-; Only active when neither manually paused nor a fullscreen app is detected
-#HotIf GetKeyState("LButton", "P") && IsHotkeyActive()
-RButton:: {
+; Define hotkey using dynamic Hotkey function so we can truly enable/disable the hook
+LBtnHeld(*) => GetKeyState("LButton", "P")
+HotIf(LBtnHeld)
+Hotkey("RButton", SnapWindow, "Off")   ; registered but OFF at start
+HotIf()
+
+UpdateTrayState()
+SetTimer(CheckShouldBeActive, 500)     ; check every 500ms
+
+SnapWindow(*) {
     hWnd := WinExist("A")
     if !hWnd
         return
@@ -19,55 +32,45 @@ RButton:: {
     Sleep(50)
     WinMaximize("ahk_id " hWnd)
 }
-#HotIf
 
-IsHotkeyActive() {
-    global g_manualPause, g_autopaused
-    return !g_manualPause && !g_autopaused
-}
-
-TogglePause(*) {
-    global g_manualPause
-    g_manualPause := !g_manualPause
+CheckShouldBeActive() {
+    global g_manualPause, g_hookActive
+    shouldBeActive := !g_manualPause && !NeedsBlock()
+    if (shouldBeActive = g_hookActive)
+        return
+    SetHook(shouldBeActive)
     UpdateTrayState()
 }
 
-UpdateTrayState() {
-    global g_manualPause, g_autopaused
-    A_TrayMenu.Delete()
-    A_TrayMenu.Add(g_manualPause ? "Resume" : "Pause", TogglePause)
-    A_TrayMenu.Add("Exit", (*) => ExitApp())
-
-    if g_autopaused
-        A_IconTip := "Max-on-Monitor (paused — fullscreen app)"
-    else if g_manualPause
-        A_IconTip := "Max-on-Monitor (paused)"
-    else
-        A_IconTip := "Max-on-Monitor"
+SetHook(enable) {
+    global g_hookActive, LBtnHeld
+    HotIf(LBtnHeld)
+    Hotkey("RButton", SnapWindow, enable ? "On" : "Off")
+    HotIf()
+    g_hookActive := enable
 }
 
-CheckFullscreen() {
-    global g_autopaused
-    fs := IsFullscreenAppActive()
-    if (fs != g_autopaused) {
-        g_autopaused := fs
-        UpdateTrayState()
+NeedsBlock() {
+    ; Block if a fullscreen app is active
+    if IsFullscreenAppActive()
+        return true
+    ; Block if any known anti-cheat / game process is running
+    global g_blockedProcesses
+    for proc in g_blockedProcesses {
+        if ProcessExist(proc)
+            return true
     }
+    return false
 }
 
 IsFullscreenAppActive() {
     hWnd := WinExist("A")
     if !hWnd
         return false
-
-    ; Ignore desktop and shell windows
     class := WinGetClass("ahk_id " hWnd)
     if (class = "WorkerW" || class = "Progman" || class = "Shell_TrayWnd" || class = "Shell_SecondaryTrayWnd")
         return false
-
     WinGetPos(&wx, &wy, &ww, &wh, "ahk_id " hWnd)
-
-    ; Check if the window exactly covers any monitor's full bounds (taskbar included)
     count := MonitorGetCount()
     loop count {
         MonitorGet(A_Index, &ml, &mt, &mr, &mb)
@@ -75,4 +78,24 @@ IsFullscreenAppActive() {
             return true
     }
     return false
+}
+
+TogglePause(*) {
+    global g_manualPause
+    g_manualPause := !g_manualPause
+    CheckShouldBeActive()
+}
+
+UpdateTrayState() {
+    global g_manualPause, g_hookActive
+    A_TrayMenu.Delete()
+    A_TrayMenu.Add(g_manualPause ? "Resume" : "Pause", TogglePause)
+    A_TrayMenu.Add("Exit", (*) => ExitApp())
+
+    if !g_hookActive && !g_manualPause
+        A_IconTip := "Max-on-Monitor (paused — game/anti-cheat detected)"
+    else if g_manualPause
+        A_IconTip := "Max-on-Monitor (paused)"
+    else
+        A_IconTip := "Max-on-Monitor"
 }
