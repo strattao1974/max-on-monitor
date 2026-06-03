@@ -7,7 +7,8 @@ internal class MouseHook : IDisposable
     private IntPtr _hookId = IntPtr.Zero;
     private readonly NativeMethods.LowLevelMouseProc _proc;
     private volatile bool _suppressNextUp;
-    private volatile bool _titleBarDrag;
+    private IntPtr _dragWindow;
+    private NativeMethods.RECT _rectAtLDown;
 
     public MouseHook()
     {
@@ -43,23 +44,22 @@ internal class MouseHook : IDisposable
                 IntPtr win = NativeMethods.WindowFromPoint(ms.pt);
                 if (win != IntPtr.Zero)
                 {
-                    win = NativeMethods.GetAncestor(win, NativeMethods.GA_ROOT);
-                    var lp = new IntPtr(((ms.pt.y & 0xFFFF) << 16) | (ms.pt.x & 0xFFFF));
-                    int hit = (int)NativeMethods.SendMessage(win, NativeMethods.WM_NCHITTEST, IntPtr.Zero, lp);
-                    _titleBarDrag = (hit == NativeMethods.HTCAPTION);
+                    _dragWindow = NativeMethods.GetAncestor(win, NativeMethods.GA_ROOT);
+                    NativeMethods.GetWindowRect(_dragWindow, out _rectAtLDown);
                 }
                 else
                 {
-                    _titleBarDrag = false;
+                    _dragWindow = IntPtr.Zero;
                 }
             }
             else if (msg == NativeMethods.WM_LBUTTONUP)
             {
-                _titleBarDrag = false;
+                _dragWindow = IntPtr.Zero;
             }
             else if (msg == NativeMethods.WM_RBUTTONDOWN &&
-                _titleBarDrag &&
-                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) != 0)
+                _dragWindow != IntPtr.Zero &&
+                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) != 0 &&
+                WindowHasMoved(_dragWindow, _rectAtLDown))
             {
                 IntPtr hwnd = NativeMethods.GetForegroundWindow();
                 if (hwnd != IntPtr.Zero)
@@ -76,6 +76,12 @@ internal class MouseHook : IDisposable
             }
         }
         return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
+    }
+
+    private static bool WindowHasMoved(IntPtr hwnd, NativeMethods.RECT original)
+    {
+        NativeMethods.GetWindowRect(hwnd, out var current);
+        return current.left != original.left || current.top != original.top;
     }
 
     private static void SnapWindow(IntPtr hwnd)

@@ -10,8 +10,6 @@ internal static class NativeMethods
     public const int WM_LBUTTONUP    = 0x0202;
     public const int WM_RBUTTONDOWN  = 0x0204;
     public const int WM_RBUTTONUP    = 0x0205;
-    public const int WM_NCHITTEST    = 0x0084;
-    public const int HTCAPTION       = 2;
     public const int VK_LBUTTON      = 0x01;
     public const int SW_RESTORE      = 9;
     public const int SW_MAXIMIZE     = 3;
@@ -73,6 +71,5 @@ internal static class NativeMethods
     [DllImport("kernel32.dll")] public static extern IntPtr GetModuleHandle(string? lpModuleName);
     [DllImport("user32.dll")] public static extern uint SendInput(uint n, INPUT[] inputs, int size);
     [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT pt);
-    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
 }
