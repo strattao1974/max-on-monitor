@@ -6,19 +6,32 @@ namespace MaxOnMonitor;
 internal static class NativeMethods
 {
     public const int WH_MOUSE_LL     = 14;
+    public const int WM_LBUTTONDOWN  = 0x0201;
+    public const int WM_LBUTTONUP    = 0x0202;
     public const int WM_RBUTTONDOWN  = 0x0204;
     public const int WM_RBUTTONUP    = 0x0205;
+    public const int WM_NCHITTEST    = 0x0084;
+    public const int HTCAPTION       = 2;
     public const int VK_LBUTTON      = 0x01;
     public const int SW_RESTORE      = 9;
     public const int SW_MAXIMIZE     = 3;
     public const uint INPUT_MOUSE    = 0;
     public const uint MOUSEEVENTF_LEFTUP = 0x0004;
     public const uint MONITOR_DEFAULTTONEAREST = 2;
+    public const uint GA_ROOT        = 2;
 
     public delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int x, y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public POINT pt;
+        public uint mouseData, flags, time;
+        public IntPtr dwExtraInfo;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int left, top, right, bottom; }
@@ -59,4 +72,7 @@ internal static class NativeMethods
     [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int GetClassName(IntPtr hWnd, StringBuilder sb, int max);
     [DllImport("kernel32.dll")] public static extern IntPtr GetModuleHandle(string? lpModuleName);
     [DllImport("user32.dll")] public static extern uint SendInput(uint n, INPUT[] inputs, int size);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT pt);
+    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
 }

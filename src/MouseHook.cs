@@ -7,6 +7,7 @@ internal class MouseHook : IDisposable
     private IntPtr _hookId = IntPtr.Zero;
     private readonly NativeMethods.LowLevelMouseProc _proc;
     private volatile bool _suppressNextUp;
+    private volatile bool _titleBarDrag;
 
     public MouseHook()
     {
@@ -36,7 +37,28 @@ internal class MouseHook : IDisposable
         {
             int msg = (int)wParam;
 
-            if (msg == NativeMethods.WM_RBUTTONDOWN &&
+            if (msg == NativeMethods.WM_LBUTTONDOWN)
+            {
+                var ms = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
+                IntPtr win = NativeMethods.WindowFromPoint(ms.pt);
+                if (win != IntPtr.Zero)
+                {
+                    win = NativeMethods.GetAncestor(win, NativeMethods.GA_ROOT);
+                    var lp = new IntPtr(((ms.pt.y & 0xFFFF) << 16) | (ms.pt.x & 0xFFFF));
+                    int hit = (int)NativeMethods.SendMessage(win, NativeMethods.WM_NCHITTEST, IntPtr.Zero, lp);
+                    _titleBarDrag = (hit == NativeMethods.HTCAPTION);
+                }
+                else
+                {
+                    _titleBarDrag = false;
+                }
+            }
+            else if (msg == NativeMethods.WM_LBUTTONUP)
+            {
+                _titleBarDrag = false;
+            }
+            else if (msg == NativeMethods.WM_RBUTTONDOWN &&
+                _titleBarDrag &&
                 (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) != 0)
             {
                 IntPtr hwnd = NativeMethods.GetForegroundWindow();
