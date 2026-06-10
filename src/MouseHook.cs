@@ -9,7 +9,6 @@ internal class MouseHook : IDisposable
     private volatile bool _suppressNextUp;
     private volatile int _animationMs;
     private IntPtr _dragWindow;
-    private NativeMethods.RECT _rectAtLDown;
 
     /// <summary>Snap animation duration in milliseconds; 0 = instant.</summary>
     public int AnimationMs
@@ -53,7 +52,6 @@ internal class MouseHook : IDisposable
                 if (win != IntPtr.Zero)
                 {
                     _dragWindow = NativeMethods.GetAncestor(win, NativeMethods.GA_ROOT);
-                    NativeMethods.GetWindowRect(_dragWindow, out _rectAtLDown);
                 }
                 else
                 {
@@ -66,8 +64,7 @@ internal class MouseHook : IDisposable
             }
             else if (msg == NativeMethods.WM_RBUTTONDOWN &&
                 _dragWindow != IntPtr.Zero &&
-                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) != 0 &&
-                WindowHasMoved(_dragWindow, _rectAtLDown))
+                (NativeMethods.GetAsyncKeyState(NativeMethods.VK_LBUTTON) & 0x8000) != 0)
             {
                 IntPtr hwnd = NativeMethods.GetForegroundWindow();
                 if (hwnd != IntPtr.Zero)
@@ -86,12 +83,6 @@ internal class MouseHook : IDisposable
             }
         }
         return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
-    }
-
-    private static bool WindowHasMoved(IntPtr hwnd, NativeMethods.RECT original)
-    {
-        NativeMethods.GetWindowRect(hwnd, out var current);
-        return current.left != original.left || current.top != original.top;
     }
 
     private static void SnapWindow(IntPtr hwnd, NativeMethods.POINT cursor, int animationMs)
