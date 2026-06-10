@@ -30,18 +30,21 @@ Go to **Settings → Apps** (or **Control Panel → Add/Remove Programs**) and u
 
 - Windows 10 or 11
 - Multi-monitor setup
+- [.NET 8 Desktop Runtime](https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe) (the installer offers to download it if missing)
 
 ## Building from source
 
-Requirements: [AutoHotkey v2](https://www.autohotkey.com/) and [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+Requirements: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) and [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
 ```bat
-# Compile the EXE
-"C:\Path\To\AutoHotkey\Compiler\Ahk2Exe.exe" /in max_on_monitor.ahk /out max_on_monitor.exe /base AutoHotkey64.exe
+:: Compile the single-file EXE
+dotnet publish src/MaxOnMonitor.csproj -c Release -r win-x64
 
-# Build the installer
+:: Build the installer
 iscc installer.iss
 ```
+
+The published EXE lands in `src\bin\Release\net8.0-windows\win-x64\publish\` (framework-dependent — end users need the .NET 8 Desktop Runtime, which the installer checks for).
 
 ## License
 

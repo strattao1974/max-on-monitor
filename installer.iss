@@ -1,7 +1,7 @@
 [Setup]
 AppName=Max-on-Monitor
 AppVersion=1.0
-AppPublisher=Your Name
+AppPublisher=Chris Stratford
 AppPublisherURL=
 AppSupportURL=
 AppUpdatesURL=

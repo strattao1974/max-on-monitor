@@ -64,8 +64,9 @@ internal class MouseHook : IDisposable
                 IntPtr hwnd = NativeMethods.GetForegroundWindow();
                 if (hwnd != IntPtr.Zero)
                 {
+                    var cursor = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam).pt;
                     _suppressNextUp = true;
-                    ThreadPool.QueueUserWorkItem(_ => SnapWindow(hwnd));
+                    ThreadPool.QueueUserWorkItem(_ => SnapWindow(hwnd, cursor));
                     return new IntPtr(1); // suppress RButton down
                 }
             }
@@ -84,7 +85,7 @@ internal class MouseHook : IDisposable
         return current.left != original.left || current.top != original.top;
     }
 
-    private static void SnapWindow(IntPtr hwnd)
+    private static void SnapWindow(IntPtr hwnd, NativeMethods.POINT cursor)
     {
         // Release LButton to end the OS drag loop
         var input = new NativeMethods.INPUT
@@ -96,9 +97,22 @@ internal class MouseHook : IDisposable
 
         Thread.Sleep(50);
 
-        // Restore from any prior maximised state, then maximise to current monitor
+        // Restore from any prior maximised state
         NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
         Thread.Sleep(20);
+
+        // SW_MAXIMIZE fills the monitor containing the window, which may not be
+        // the one under the cursor when the window straddles an edge — move it
+        // onto the cursor's monitor first
+        IntPtr mon = NativeMethods.MonitorFromPoint(cursor, NativeMethods.MONITOR_DEFAULTTONEAREST);
+        var info = new NativeMethods.MONITORINFO { cbSize = (uint)Marshal.SizeOf<NativeMethods.MONITORINFO>() };
+        if (NativeMethods.GetMonitorInfo(mon, ref info))
+        {
+            NativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
+                info.rcWork.left, info.rcWork.top, 0, 0,
+                NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+        }
+
         NativeMethods.ShowWindow(hwnd, NativeMethods.SW_MAXIMIZE);
     }
 

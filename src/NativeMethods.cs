@@ -17,6 +17,9 @@ internal static class NativeMethods
     public const uint MOUSEEVENTF_LEFTUP = 0x0004;
     public const uint MONITOR_DEFAULTTONEAREST = 2;
     public const uint GA_ROOT        = 2;
+    public const uint SWP_NOSIZE     = 0x0001;
+    public const uint SWP_NOZORDER   = 0x0004;
+    public const uint SWP_NOACTIVATE = 0x0010;
 
     public delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -72,4 +75,5 @@ internal static class NativeMethods
     [DllImport("user32.dll")] public static extern uint SendInput(uint n, INPUT[] inputs, int size);
     [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT pt);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 }

@@ -8,6 +8,7 @@ internal class TrayApp : ApplicationContext
     private readonly NotifyIcon _tray;
     private readonly MouseHook _hook;
     private readonly System.Windows.Forms.Timer _timer;
+    private readonly ToolStripMenuItem _pauseItem;
     private bool _manualPause;
     private bool _autoPaused;
 
@@ -19,6 +20,12 @@ internal class TrayApp : ApplicationContext
         var stream = typeof(TrayApp).Assembly.GetManifestResourceStream("maximise.ico")!;
         _tray = new NotifyIcon { Icon = new Icon(stream), Visible = true };
         stream.Dispose();
+
+        _pauseItem = new ToolStripMenuItem("Pause", null, TogglePause);
+        var menu = new ContextMenuStrip();
+        menu.Items.Add(_pauseItem);
+        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => Exit()));
+        _tray.ContextMenuStrip = menu;
 
         _timer = new System.Windows.Forms.Timer { Interval = 500 };
         _timer.Tick += (_, _) => CheckFullscreen();
@@ -53,10 +60,7 @@ internal class TrayApp : ApplicationContext
                 ? "Max-on-Monitor (paused — fullscreen app)"
                 : "Max-on-Monitor (paused)";
 
-        var menu = new ContextMenuStrip();
-        menu.Items.Add(_manualPause ? "Resume" : "Pause", null, TogglePause);
-        menu.Items.Add("Exit", null, (_, _) => Exit());
-        _tray.ContextMenuStrip = menu;
+        _pauseItem.Text = _manualPause ? "Resume" : "Pause";
     }
 
     private void TogglePause(object? s, EventArgs e)
