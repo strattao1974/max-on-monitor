@@ -1,10 +1,10 @@
 [Setup]
 AppName=Max-on-Monitor
-AppVersion=1.0
+AppVersion=1.1
 AppPublisher=Chris Stratford
-AppPublisherURL=
-AppSupportURL=
-AppUpdatesURL=
+AppPublisherURL=https://github.com/strattao1974/max-on-monitor
+AppSupportURL=https://github.com/strattao1974/max-on-monitor/issues
+AppUpdatesURL=https://github.com/strattao1974/max-on-monitor/releases
 DefaultDirName={autopf}\MaxOnMonitor
 DefaultGroupName=Max-on-Monitor
 DisableProgramGroupPage=yes

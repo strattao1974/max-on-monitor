@@ -7,8 +7,16 @@ internal class MouseHook : IDisposable
     private IntPtr _hookId = IntPtr.Zero;
     private readonly NativeMethods.LowLevelMouseProc _proc;
     private volatile bool _suppressNextUp;
+    private volatile int _animationMs;
     private IntPtr _dragWindow;
     private NativeMethods.RECT _rectAtLDown;
+
+    /// <summary>Snap animation duration in milliseconds; 0 = instant.</summary>
+    public int AnimationMs
+    {
+        get => _animationMs;
+        set => _animationMs = value;
+    }
 
     public MouseHook()
     {
@@ -65,8 +73,9 @@ internal class MouseHook : IDisposable
                 if (hwnd != IntPtr.Zero)
                 {
                     var cursor = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam).pt;
+                    int animMs = _animationMs;
                     _suppressNextUp = true;
-                    ThreadPool.QueueUserWorkItem(_ => SnapWindow(hwnd, cursor));
+                    ThreadPool.QueueUserWorkItem(_ => SnapWindow(hwnd, cursor, animMs));
                     return new IntPtr(1); // suppress RButton down
                 }
             }
@@ -85,7 +94,7 @@ internal class MouseHook : IDisposable
         return current.left != original.left || current.top != original.top;
     }
 
-    private static void SnapWindow(IntPtr hwnd, NativeMethods.POINT cursor)
+    private static void SnapWindow(IntPtr hwnd, NativeMethods.POINT cursor, int animationMs)
     {
         // Release LButton to end the OS drag loop
         var input = new NativeMethods.INPUT
@@ -108,12 +117,43 @@ internal class MouseHook : IDisposable
         var info = new NativeMethods.MONITORINFO { cbSize = (uint)Marshal.SizeOf<NativeMethods.MONITORINFO>() };
         if (NativeMethods.GetMonitorInfo(mon, ref info))
         {
-            NativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
-                info.rcWork.left, info.rcWork.top, 0, 0,
-                NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+            if (animationMs > 0)
+                AnimateTo(hwnd, info.rcWork, animationMs);
+            else
+                NativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
+                    info.rcWork.left, info.rcWork.top, 0, 0,
+                    NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
         }
 
         NativeMethods.ShowWindow(hwnd, NativeMethods.SW_MAXIMIZE);
+    }
+
+    // Grow the window from its dragged rect to the monitor work area with an
+    // ease-out curve, so the SW_MAXIMIZE that follows is visually seamless
+    private static void AnimateTo(IntPtr hwnd, NativeMethods.RECT target, int durationMs)
+    {
+        NativeMethods.GetWindowRect(hwnd, out var start);
+        int targetW = target.right - target.left;
+        int targetH = target.bottom - target.top;
+        int startW = start.right - start.left;
+        int startH = start.bottom - start.top;
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (true)
+        {
+            double t = Math.Min(1.0, sw.Elapsed.TotalMilliseconds / durationMs);
+            double e = 1 - Math.Pow(1 - t, 3); // ease-out cubic
+
+            NativeMethods.SetWindowPos(hwnd, IntPtr.Zero,
+                (int)Math.Round(start.left + (target.left - start.left) * e),
+                (int)Math.Round(start.top + (target.top - start.top) * e),
+                (int)Math.Round(startW + (targetW - startW) * e),
+                (int)Math.Round(startH + (targetH - startH) * e),
+                NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+
+            if (t >= 1.0) break;
+            Thread.Sleep(10);
+        }
     }
 
     public void Dispose() => Uninstall();

@@ -21,9 +21,20 @@ internal class TrayApp : ApplicationContext
         _tray = new NotifyIcon { Icon = new Icon(stream), Visible = true };
         stream.Dispose();
 
+        _hook.AnimationMs = Settings.LoadAnimationMs();
+
         _pauseItem = new ToolStripMenuItem("Pause", null, TogglePause);
+
+        var speedMenu = new ToolStripMenuItem("Animation speed");
+        speedMenu.DropDownItems.Add(CreateSpeedItem("Instant", 0));
+        speedMenu.DropDownItems.Add(CreateSpeedItem("Quick (120 ms)", 120));
+        speedMenu.DropDownItems.Add(CreateSpeedItem("Smooth (250 ms)", 250));
+
         var menu = new ContextMenuStrip();
         menu.Items.Add(_pauseItem);
+        menu.Items.Add(speedMenu);
+        menu.Items.Add(new ToolStripMenuItem("Check for updates…", null, (_, _) => _ = CheckForUpdatesAsync()));
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => Exit()));
         _tray.ContextMenuStrip = menu;
 
@@ -61,6 +72,62 @@ internal class TrayApp : ApplicationContext
                 : "Max-on-Monitor (paused)";
 
         _pauseItem.Text = _manualPause ? "Resume" : "Pause";
+    }
+
+    private ToolStripMenuItem CreateSpeedItem(string label, int ms)
+    {
+        var item = new ToolStripMenuItem(label) { Checked = _hook.AnimationMs == ms, Tag = ms };
+        item.Click += (s, _) => SelectSpeed((ToolStripMenuItem)s!);
+        return item;
+    }
+
+    private void SelectSpeed(ToolStripMenuItem selected)
+    {
+        int ms = (int)selected.Tag!;
+        _hook.AnimationMs = ms;
+        Settings.SaveAnimationMs(ms);
+
+        foreach (ToolStripMenuItem item in ((ToolStripMenuItem)selected.OwnerItem!).DropDownItems)
+            item.Checked = item == selected;
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        var current = typeof(TrayApp).Assembly.GetName().Version ?? new Version(0, 0, 0);
+        try
+        {
+            var release = await UpdateChecker.GetLatestReleaseAsync();
+            if (release is null)
+            {
+                _tray.ShowBalloonTip(4000, "Max-on-Monitor", "Couldn't check for updates.", ToolTipIcon.Warning);
+                return;
+            }
+
+            var (latest, url) = release.Value;
+            if (Pad(latest) > Pad(current))
+            {
+                if (MessageBox.Show(
+                        $"Version {latest} is available (you have {current.ToString(3)}).\n\nOpen the download page?",
+                        "Max-on-Monitor update", MessageBoxButtons.YesNo, MessageBoxIcon.Information)
+                    == DialogResult.Yes)
+                {
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                }
+            }
+            else
+            {
+                _tray.ShowBalloonTip(4000, "Max-on-Monitor",
+                    $"You're running the latest version ({current.ToString(3)}).", ToolTipIcon.Info);
+            }
+        }
+        catch
+        {
+            _tray.ShowBalloonTip(4000, "Max-on-Monitor", "Couldn't check for updates.", ToolTipIcon.Warning);
+        }
+
+        // Release tags may be two-part (v1.1) while the assembly is four-part
+        static Version Pad(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
     }
 
     private void TogglePause(object? s, EventArgs e)
