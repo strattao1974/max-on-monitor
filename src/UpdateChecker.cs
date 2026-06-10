@@ -11,20 +11,21 @@ internal static class UpdateChecker
     public const string ReleasesPage =
         "https://github.com/strattao1974/max-on-monitor/releases/latest";
 
-    /// <summary>Returns the latest released version and its page URL, or null if the tag isn't parseable.</summary>
-    public static async Task<(Version Latest, string Url)?> GetLatestReleaseAsync()
+    /// <summary>Returns the latest version and direct exe download URL, or null if unparseable.</summary>
+    public static async Task<(Version Latest, string DownloadUrl)?> GetLatestReleaseAsync()
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("MaxOnMonitor-UpdateCheck");
 
         using var doc = JsonDocument.Parse(await http.GetStringAsync(ApiUrl));
         string tag = doc.RootElement.GetProperty("tag_name").GetString() ?? "";
-        string url = doc.RootElement.TryGetProperty("html_url", out var u)
-            ? u.GetString() ?? ReleasesPage
-            : ReleasesPage;
+
+        string downloadUrl = ReleasesPage;
+        if (doc.RootElement.TryGetProperty("assets", out var assets) && assets.GetArrayLength() > 0)
+            downloadUrl = assets[0].GetProperty("browser_download_url").GetString() ?? ReleasesPage;
 
         return Version.TryParse(tag.TrimStart('v', 'V'), out var version)
-            ? (version, url)
+            ? (version, downloadUrl)
             : null;
     }
 }

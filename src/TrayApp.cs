@@ -103,16 +103,15 @@ internal class TrayApp : ApplicationContext
                 return;
             }
 
-            var (latest, url) = release.Value;
+            var (latest, downloadUrl) = release.Value;
             if (Pad(latest) > Pad(current))
             {
                 if (MessageBox.Show(
-                        $"Version {latest} is available (you have {current.ToString(3)}).\n\nOpen the download page?",
+                        $"Version {latest} is available (you have {current.ToString(3)}).\n\nInstall now?",
                         "Max-on-Monitor update", MessageBoxButtons.YesNo, MessageBoxIcon.Information)
                     == DialogResult.Yes)
                 {
-                    System.Diagnostics.Process.Start(
-                        new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                    await InstallUpdateAsync(downloadUrl);
                 }
             }
             else
@@ -128,6 +127,47 @@ internal class TrayApp : ApplicationContext
 
         // Release tags may be two-part (v1.1) while the assembly is four-part
         static Version Pad(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
+    }
+
+    private async Task InstallUpdateAsync(string downloadUrl)
+    {
+        string currentExe = Environment.ProcessPath!;
+        string tempExe = Path.Combine(Path.GetTempPath(), "max_on_monitor_new.exe");
+        string batchFile = Path.Combine(Path.GetTempPath(), "max_on_monitor_update.bat");
+
+        try
+        {
+            _tray.ShowBalloonTip(3000, "Max-on-Monitor", "Downloading update…", ToolTipIcon.Info);
+
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("MaxOnMonitor-UpdateCheck");
+            var bytes = await http.GetByteArrayAsync(downloadUrl);
+            await File.WriteAllBytesAsync(tempExe, bytes);
+
+            // Batch script: wait for this process to exit, swap the exe, restart
+            await File.WriteAllTextAsync(batchFile,
+                $"@echo off\r\n" +
+                $"ping -n 4 127.0.0.1 >nul\r\n" +
+                $"copy /y \"{tempExe}\" \"{currentExe}\"\r\n" +
+                $"start \"\" \"{currentExe}\"\r\n" +
+                $"del \"{tempExe}\"\r\n" +
+                $"del \"%~f0\"\r\n");
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c \"{batchFile}\"",
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+
+            Exit();
+        }
+        catch
+        {
+            _tray.ShowBalloonTip(4000, "Max-on-Monitor", "Download failed — please update manually.", ToolTipIcon.Error);
+        }
     }
 
     private void TogglePause(object? s, EventArgs e)
